@@ -1,0 +1,70 @@
+---
+title: "EmoBank — Análise de Emoções & Risco"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width = 8, fig.height = 5, fig.align = "center", echo = FALSE)
+if (!dir.exists("../artifacts")) dir.create("../artifacts", recursive = TRUE)
+set.seed(2025)
+```
+
+```{r libs, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(yardstick)
+library(scales)
+```
+
+## Carregar dados
+```{r}
+df <- read.csv("../data/synthetic.csv")
+glimpse(df)
+```
+
+## Distribuição de emoções (contagem)
+```{r}
+emo_count <- df %>% count(emotion) %>% arrange(desc(n))
+emo_count
+write.csv(emo_count, "../artifacts/emo_count.csv", row.names = FALSE)
+```
+
+## Mix de emoções por canal (proporção)
+```{r}
+p_mix <- df %>%
+  count(channel, emotion) %>%
+  group_by(channel) %>%
+  mutate(p = n / sum(n)) %>%
+  ggplot(aes(channel, p, fill = emotion)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(title = "Mix de emoções por canal", x = "Canal", y = "Proporção") +
+  theme_minimal(base_size = 12)
+
+p_mix
+ggsave("../artifacts/mix_emocoes_por_canal.png", p_mix, width = 8, height = 5, dpi = 160)
+```
+
+## Taxas médias de churn e “fraude emocional”
+```{r}
+rates <- df %>%
+  summarise(
+    churn_rate = mean(churned),
+    fraud_rate = mean(fraud_flag)
+  )
+rates
+write.csv(rates, "../artifacts/taxas_churn_fraude.csv", row.names = FALSE)
+```
+
+## (Bônus) Distribuição do valor por emoção
+```{r}
+p_amount <- df %>%
+  ggplot(aes(x = emotion, y = amount, fill = emotion)) +
+  geom_boxplot(outlier.alpha = 0.25) +
+  scale_y_continuous(labels = label_number(big.mark = ".", decimal.mark = ",")) + # nolint: line_length_linter.
+  labs(title = "Distribuição de valor por emoção", x = "Emoção", y = "Valor da transação") +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none")
+
+p_amount
+ggsave("../artifacts/distribuicao_valor_por_emocao.png", p_amount, width = 8, height = 5, dpi = 160)
+```
